@@ -1,54 +1,42 @@
+# Clojure CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-clojure/ for more details
+#
 version: 2
 jobs:
-   test_clj_10:
-     working_directory: ~/datascript
-     docker:
-       - image: circleci/clojure:lein
-     steps:
-       - checkout
-       - restore_cache:
-           key: dependency-cache-{{ checksum "project.clj" }}
-       - run: lein with-profile dev test-clj
-       - save_cache:
-           key: dependency-cache-{{ checksum "project.clj" }}
-           paths:
-             - ~/.m2
+  build:
+    docker:
+      # specify the version you desire here
+      - image: circleci/clojure:lein-2.7.1
 
-   build_cljs:
-     working_directory: ~/datascript
-     docker:
-       - image: circleci/clojure:lein
-     steps:
-       - checkout
-       - restore_cache:
-           key: dependency-cache-{{ checksum "project.clj" }}
-       - run: lein cljsbuild once advanced release
-       - save_cache:
-           key: dependency-cache-{{ checksum "project.clj" }}
-           paths:
-             - ~/.m2
-       - persist_to_workspace:
-           root: .
-           paths:
-             - target/datascript.js
-             - release-js/datascript.js
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
 
-   test_cljs:
-     working_directory: ~/datascript
-     docker:
-       - image: circleci/node:8
-     steps:
-       - checkout
-       - attach_workspace:
-           at: .
-       - run: node ./test_node.js --all
+    working_directory: ~/repo
 
-workflows:
-  version: 2
-  everything:
-    jobs:
-      - test_clj_10
-      - build_cljs
-      - test_cljs:
-          requires:
-            - build_cljs
+    environment:
+      LEIN_ROOT: "true"
+      # Customize the JVM maximum heap limit
+      JVM_OPTS: -Xmx3200m
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "project.clj" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      - run: lein deps
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies-{{ checksum "project.clj" }}
+
+      # run tests!
+      - run: lein test
